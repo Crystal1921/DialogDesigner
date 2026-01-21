@@ -1,3 +1,5 @@
+package moe.gensoukyo.automata;
+
 import imgui.*;
 import imgui.app.Application;
 import imgui.app.Configuration;
