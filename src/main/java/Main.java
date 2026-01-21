@@ -6,9 +6,12 @@ public class Main extends Application {
     private static final float PIXELS_PER_SECOND_BASE = 100f;
     private static final float ZOOM_SENSITIVITY = 0.1f;
     private static final float CULLING_MARGIN = 50f;
+    private static final float MIN_TIME_STEP = 0.05f;
 
     private float timelineOffset = 0f;
     private float timelineZoom = 1f;
+    private float currentTime = 0f;
+    private final float[] sceneColor = new float[]{1f, 1f, 1f, 1f};
 
     @Override
     protected void configure(Configuration config) {
@@ -18,6 +21,8 @@ public class Main extends Application {
     @Override
     public void process() {
         ImGui.text("拖拽滑动并可缩放的时间条演示");
+        ImGui.colorEdit4("scene_color", sceneColor);
+        ImGui.text(String.format("当前时间: %.2fs (最小刻度 %.2fs)", currentTime, MIN_TIME_STEP));
         drawTimeline();
     }
 
@@ -50,6 +55,14 @@ public class Main extends Application {
             timelineOffset += ImGui.getIO().getMouseDeltaX();
         }
 
+        if (ImGui.isItemHovered() && ImGui.isMouseClicked(0)) {
+            float mouseX = ImGui.getIO().getMousePosX();
+            float worldSeconds = (mouseX - timelineStartX - timelineOffset) / (PIXELS_PER_SECOND_BASE * timelineZoom);
+            worldSeconds = Math.max(0f, worldSeconds);
+            float snapped = Math.round(worldSeconds / MIN_TIME_STEP) * MIN_TIME_STEP;
+            currentTime = snapped;
+        }
+
         var drawList = ImGui.getWindowDrawList();
         float pixelsPerSecond = PIXELS_PER_SECOND_BASE * timelineZoom;
         float visibleSeconds = (availableWidth / pixelsPerSecond) + 2f;
@@ -67,6 +80,9 @@ public class Main extends Application {
                 drawList.addText(x + 4f, timelineStartY + tickHeight + 2f, 0xFFFFFFFF, s + "s");
             }
         }
+
+        float playheadX = timelineStartX + timelineOffset + currentTime * pixelsPerSecond;
+        drawList.addLine(playheadX, timelineStartY, playheadX, timelineStartY + timelineHeight, 0xFF66CCFF, 2f);
 
         drawList.addRect(timelineStartX, timelineStartY, timelineStartX + availableWidth, timelineStartY + timelineHeight, 0x80FFFFFF);
     }
