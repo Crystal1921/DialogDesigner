@@ -3,6 +3,10 @@ import imgui.app.Application;
 import imgui.app.Configuration;
 
 public class Main extends Application {
+    private static final float PIXELS_PER_SECOND_BASE = 100f;
+    private static final float ZOOM_SENSITIVITY = 0.1f;
+    private static final float CULLING_MARGIN = 50f;
+
     private float timelineOffset = 0f;
     private float timelineZoom = 1f;
 
@@ -35,10 +39,10 @@ public class Main extends Application {
             float wheel = ImGui.getIO().getMouseWheel();
             if (wheel != 0f) {
                 float mouseX = ImGui.getIO().getMousePosX();
-                float world = (mouseX - timelineStartX - timelineOffset) / (100f * timelineZoom);
-                float newZoom = timelineZoom * (1f + wheel * 0.1f);
+                float world = (mouseX - timelineStartX - timelineOffset) / (PIXELS_PER_SECOND_BASE * timelineZoom);
+                float newZoom = timelineZoom * (1f + wheel * ZOOM_SENSITIVITY);
                 timelineZoom = Math.max(0.2f, Math.min(5f, newZoom));
-                timelineOffset = mouseX - timelineStartX - world * 100f * timelineZoom;
+                timelineOffset = mouseX - timelineStartX - world * PIXELS_PER_SECOND_BASE * timelineZoom;
             }
         }
 
@@ -47,14 +51,14 @@ public class Main extends Application {
         }
 
         var drawList = ImGui.getWindowDrawList();
-        float pixelsPerSecond = 100f * timelineZoom;
+        float pixelsPerSecond = PIXELS_PER_SECOND_BASE * timelineZoom;
         float visibleSeconds = (availableWidth / pixelsPerSecond) + 2f;
         int startSecond = (int) Math.floor((-timelineOffset) / pixelsPerSecond) - 1;
         int endSecond = startSecond + (int) visibleSeconds + 3;
 
         for (int s = startSecond; s <= endSecond; s++) {
             float x = timelineStartX + timelineOffset + s * pixelsPerSecond;
-            if (x < timelineStartX - 50 || x > timelineStartX + availableWidth + 50) {
+            if (x < timelineStartX - CULLING_MARGIN || x > timelineStartX + availableWidth + CULLING_MARGIN) {
                 continue;
             }
             float tickHeight = (s % 5 == 0) ? 30f : 18f;
