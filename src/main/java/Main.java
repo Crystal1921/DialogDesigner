@@ -48,11 +48,15 @@ public class Main extends Application {
                 float newZoom = timelineZoom * (1f + wheel * ZOOM_SENSITIVITY);
                 timelineZoom = Math.max(0.2f, Math.min(5f, newZoom));
                 timelineOffset = mouseX - timelineStartX - world * PIXELS_PER_SECOND_BASE * timelineZoom;
+                // 限制 offset，确保时间线最小为0
+                timelineOffset = Math.min(0, timelineOffset);
             }
         }
 
         if (ImGui.isItemActive() && ImGui.isMouseDragging(0)) {
             timelineOffset += ImGui.getIO().getMouseDeltaX();
+            // 限制 offset，确保时间线最小为0
+            timelineOffset = Math.min(0, timelineOffset);
         }
 
         if (ImGui.isItemHovered() && ImGui.isMouseClicked(0)) {
