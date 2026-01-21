@@ -1,10 +1,8 @@
-import imgui.ImFont;
-import imgui.ImFontAtlas;
-import imgui.ImFontConfig;
-import imgui.ImGui;
-import imgui.ImGuiIO;
+import imgui.*;
 import imgui.app.Application;
 import imgui.app.Configuration;
+import imgui.type.ImInt;
+import imgui.type.ImString;
 
 import java.io.IOException;
 
@@ -13,16 +11,23 @@ public class Main extends Application {
     private static final float ZOOM_SENSITIVITY = 0.1f;
     private static final float CULLING_MARGIN = 50f;
     private static final float MIN_TIME_STEP = 0.05f;
-
+    private final float[] sceneColor = new float[]{1f, 1f, 1f, 1f};
+    private final float[] eventColor = new float[]{1f, 1f, 1f, 1f};
+    // 事件类型选择（默认为null，表示未选择）
+    private final ImInt selectedEventTypeIndex = new ImInt(0);
+    private final ImString[] eventInputs1 = new ImString[]{new ImString("")};
+    private final ImString[] eventInputs2 = new ImString[]{new ImString(""), new ImString("")};
+    private final ImString[] eventInputs3 = new ImString[]{new ImString(""), new ImString(""), new ImString("")};
     private float timelineOffset = 0f;
     private float timelineZoom = 1f;
     private float currentTime = 0f;
-    private final float[] sceneColor = new float[]{1f, 1f, 1f, 1f};
-
     // 右键弹窗相关状态
     private boolean showRightClickPopup = false;
     private float rightClickTime = 0f;
-    private final float[] eventColor = new float[]{1f, 1f, 1f, 1f};
+
+    public static void main(String[] args) {
+        launch(new Main());
+    }
 
     @Override
     protected void configure(Configuration config) {
@@ -59,15 +64,11 @@ public class Main extends Application {
     @Override
     public void process() {
 
-        ImGui.text("拖拽滑动并可缩放的时间条演示");
+        ImGui.text("拖动滑动并可缩放的时间条演示");
         ImGui.colorEdit4("scene_color", sceneColor);
         ImGui.text(String.format("当前时间: %.2fs (最小刻度 %.2fs)", currentTime, MIN_TIME_STEP));
         drawTimeline();
         drawRightClickPopup();
-    }
-
-    public static void main(String[] args) {
-        launch(new Main());
     }
 
     private void drawTimeline() {
@@ -148,12 +149,51 @@ public class Main extends Application {
             ImGui.separator();
             ImGui.text(String.format("时间: %.2fs", rightClickTime));
 
+            // 事件类型选择
+            ImGui.text("事件类型:");
+            EventType[] eventTypes = EventType.values();
+            String[] eventTypeNames = new String[eventTypes.length];
+            for (int i = 0; i < eventTypes.length; i++) {
+                eventTypeNames[i] = eventTypes[i].getDisplayName();
+            }
+
+            int previousIndex = selectedEventTypeIndex.get();
+            if (ImGui.combo("##event_type", selectedEventTypeIndex, eventTypeNames)) {
+                // 切换事件类型时清空输入框
+                if (previousIndex != selectedEventTypeIndex.get()) {
+                    clearEventInputs();
+                }
+            }
+
+            ImGui.separator();
+
+            // 根据选择的事件类型显示相应数量的输入框
+            EventType currentEventType = eventTypes[selectedEventTypeIndex.get()];
+            int inputCount = currentEventType.getInputCount();
+
+            ImGui.text("事件参数:");
+            ImString[] currentInputs = getEventInputsArray(inputCount);
+
+            for (int i = 0; i < inputCount; i++) {
+                ImGui.inputText("参数 " + (i + 1) + "##input_" + i, currentInputs[i]);
+            }
+
+            ImGui.separator();
             ImGui.text("事件颜色:");
-            ImGui.colorEdit4("event_color", eventColor);
+            ImGui.colorEdit4("##event_color", eventColor);
 
             ImGui.separator();
             if (ImGui.button("确定")) {
-                // TODO: 添加事件逻辑
+                // TODO: 根据选择的事件类型和输入参数添加事件
+                EventType selectedType = eventTypes[selectedEventTypeIndex.get()];
+                ImString[] inputs = getEventInputsArray(selectedType.getInputCount());
+
+                System.out.println("添加事件: " + selectedType.getDisplayName());
+                System.out.println("时间: " + rightClickTime + "s");
+                for (int i = 0; i < inputs.length; i++) {
+                    System.out.println("参数 " + (i + 1) + ": " + inputs[i].get());
+                }
+
                 ImGui.closeCurrentPopup();
                 showRightClickPopup = false;
             }
@@ -164,6 +204,43 @@ public class Main extends Application {
             }
 
             ImGui.endPopup();
+        }
+    }
+
+    private void clearEventInputs() {
+        for (ImString imString : eventInputs1) imString.set("");
+        for (ImString imString : eventInputs2) imString.set("");
+        for (ImString imString : eventInputs3) imString.set("");
+    }
+
+    private ImString[] getEventInputsArray(int inputCount) {
+        return switch (inputCount) {
+            case 1 -> eventInputs1;
+            case 2 -> eventInputs2;
+            case 3 -> eventInputs3;
+            default -> eventInputs2;
+        };
+    }
+
+    // 事件类型定义
+    private enum EventType {
+        TWO_INPUTS("双参数事件", 2),
+        THREE_INPUTS("三参数事件", 3);
+
+        private final String displayName;
+        private final int inputCount;
+
+        EventType(String displayName, int inputCount) {
+            this.displayName = displayName;
+            this.inputCount = inputCount;
+        }
+
+        public String getDisplayName() {
+            return displayName;
+        }
+
+        public int getInputCount() {
+            return inputCount;
         }
     }
 }
