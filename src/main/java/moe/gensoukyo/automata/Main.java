@@ -3,14 +3,20 @@ package moe.gensoukyo.automata;
 import imgui.*;
 import imgui.app.Application;
 import imgui.app.Configuration;
-import imgui.type.ImInt;
-import imgui.type.ImString;
 import imgui.type.ImFloat;
-import imgui.type.ImBoolean;
+import imgui.type.ImInt;
+import moe.gensoukyo.automata.actions.Action;
+import moe.gensoukyo.automata.actions.ActionFactory;
+import moe.gensoukyo.automata.actions.EventType;
+import moe.gensoukyo.automata.actions.parameter.ParameterDefinition;
+import moe.gensoukyo.automata.actions.parameter.ParameterType;
+import moe.gensoukyo.automata.actions.parameter.ParameterValue;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
 public class Main extends Application {
     private static final float PIXELS_PER_SECOND_BASE = 100f;
@@ -22,6 +28,8 @@ public class Main extends Application {
     private final ImInt selectedEventTypeIndex = new ImInt(0);
     // 参数值存储
     private final List<ParameterValue> parameterValues = new ArrayList<>();
+    // 事件数据存储: 时间(秒*100) -> 事件列表
+    private final Map<Integer, List<Action>> eventData = new TreeMap<>();
     private float timelineOffset = 0f;
     private float timelineZoom = 1f;
     private float currentTime = 0f;
@@ -73,6 +81,7 @@ public class Main extends Application {
         ImGui.text(String.format("当前时间: %.2fs (最小刻度 %.2fs)", currentTime, MIN_TIME_STEP));
         drawTimeline();
         drawRightClickPopup();
+        drawEventList();
     }
 
     private void drawTimeline() {
@@ -144,6 +153,52 @@ public class Main extends Application {
         float playheadX = timelineStartX + timelineOffset + currentTime * pixelsPerSecond;
         drawList.addLine(playheadX, timelineStartY, playheadX, timelineStartY + timelineHeight, 0xFF66CCFF, 2f);
 
+        // 绘制事件标记
+        for (Map.Entry<Integer, List<Action>> entry : eventData.entrySet()) {
+            int timeKey = entry.getKey();
+            float eventTime = timeKey / 100f;
+            List<Action> actions = entry.getValue();
+
+            float eventX = timelineStartX + timelineOffset + eventTime * pixelsPerSecond;
+
+            // 只绘制可见范围内的事件
+            if (eventX < timelineStartX - CULLING_MARGIN || eventX > timelineStartX + availableWidth + CULLING_MARGIN) {
+                continue;
+            }
+
+            // 根据事件数量选择颜色和大小
+            int eventCount = actions.size();
+            int color = eventCount > 1 ? 0xFFFFA500 : 0xFF00FF00; // 多个事件为橙色，单个为绿色
+            float markerSize = Math.min(20f, 10f + eventCount * 2f);
+
+            // 绘制事件标记（三角形）
+            float triangleY = timelineStartY + timelineHeight - 5f;
+            drawList.addTriangleFilled(
+                    eventX, triangleY,
+                    eventX - markerSize / 2, triangleY + markerSize,
+                    eventX + markerSize / 2, triangleY + markerSize,
+                    color
+            );
+
+            // 绘制事件数量文本
+            if (eventCount > 1) {
+                String countText = String.valueOf(eventCount);
+                drawList.addText(eventX + 5f, triangleY, 0xFFFFFFFF, countText);
+            }
+
+            // 悬停时显示事件详情
+            if (ImGui.isMouseHoveringRect(eventX - 5f, triangleY, eventX + 5f, triangleY + markerSize + 5f)) {
+                ImGui.beginTooltip();
+                ImGui.text(String.format("时间: %.2fs", eventTime));
+                ImGui.text(String.format("事件数: %d", eventCount));
+                ImGui.separator();
+                for (Action action : actions) {
+                    ImGui.text("- " + action.getDisplayName());
+                }
+                ImGui.endTooltip();
+            }
+        }
+
         drawList.addRect(timelineStartX, timelineStartY, timelineStartX + availableWidth, timelineStartY + timelineHeight, 0x80FFFFFF);
     }
 
@@ -185,18 +240,35 @@ public class Main extends Application {
             }
 
             ImGui.separator();
-            if (ImGui.button("确定")) {
-                EventType selectedType = eventTypes[selectedEventTypeIndex.get()];
-                System.out.println("添加事件: " + selectedType.getCommand());
-                System.out.println("时间: " + rightClickTime + "s");
-                for (int i = 0; i < parameterValues.size() && i < selectedType.getParameters().size(); i++) {
-                    ParameterDefinition param = selectedType.getParameters().get(i);
-                    ParameterValue value = parameterValues.get(i);
-                    System.out.println("  " + param.name() + ": " + getValueAsString(value, param.type()));
-                }
 
-                ImGui.closeCurrentPopup();
-                showRightClickPopup = false;
+            // 显示验证错误信息
+            Action tempAction = ActionFactory.createActionFromParameters(currentEventType, (int) (rightClickTime * 100), parameterValues);
+            if (!tempAction.isValid()) {
+                ImGui.textColored(1.0f, 0.0f, 0.0f, 1.0f, "错误: " + tempAction.getValidationError());
+            }
+
+            if (ImGui.button("确定")) {
+                Action action = ActionFactory.createActionFromParameters(currentEventType, (int) (rightClickTime * 100), parameterValues);
+
+                // 验证参数
+                if (!action.isValid()) {
+                    System.err.println("参数验证失败: " + action.getValidationError());
+                } else {
+                    // 将事件添加到 eventData
+                    int timeKey = (int) (rightClickTime * 100);
+                    eventData.computeIfAbsent(timeKey, k -> new ArrayList<>()).add(action);
+
+                    System.out.println("添加事件: " + action.getDisplayName());
+                    System.out.println("时间: " + rightClickTime + "s");
+                    for (int i = 0; i < parameterValues.size() && i < currentEventType.getParameters().size(); i++) {
+                        ParameterDefinition param = currentEventType.getParameters().get(i);
+                        ParameterValue value = parameterValues.get(i);
+                        System.out.println("  " + param.name() + ": " + getValueAsString(value, param.type()));
+                    }
+
+                    ImGui.closeCurrentPopup();
+                    showRightClickPopup = false;
+                }
             }
             ImGui.sameLine();
             if (ImGui.button("取消")) {
@@ -205,6 +277,67 @@ public class Main extends Application {
             }
 
             ImGui.endPopup();
+        }
+    }
+
+    private void drawEventList() {
+        ImGui.separator();
+        ImGui.text("事件列表");
+
+        // 统计事件总数
+        int totalEvents = eventData.values().stream().mapToInt(List::size).sum();
+        ImGui.sameLine();
+        ImGui.textDisabled("(共 " + totalEvents + " 个事件)");
+
+        // 删除所有事件按钮
+        if (ImGui.button("清空所有事件")) {
+            eventData.clear();
+        }
+
+        // 按时间排序显示事件
+        if (!eventData.isEmpty()) {
+            ImGui.beginChild("EventListChild", 0, 300, true);
+
+            for (Map.Entry<Integer, List<Action>> entry : eventData.entrySet()) {
+                int timeKey = entry.getKey();
+                float time = timeKey / 100f;
+                List<Action> actions = entry.getValue();
+
+                // 显示时间标题
+                ImGui.pushID(timeKey);
+                ImGui.text(String.format("[%.2fs] - %d 个事件", time, actions.size()));
+
+                // 显示每个事件
+                for (int i = 0; i < actions.size(); i++) {
+                    Action action = actions.get(i);
+                    ImGui.pushID(i);
+
+                    // 事件描述
+                    ImGui.text("  " + action.getDisplayName());
+
+                    // 删除按钮
+                    ImGui.sameLine();
+                    String deleteLabel = "删除##" + timeKey + "_" + i;
+                    if (ImGui.button(deleteLabel)) {
+                        actions.remove(i);
+                        i--; // 调整索引
+                        // 如果该时间点没有事件了，删除这个键
+                        if (actions.isEmpty()) {
+                            eventData.remove(timeKey);
+                        }
+                        ImGui.popID();
+                        break; // 退出内层循环
+                    }
+                    ImGui.popID();
+                }
+
+                ImGui.popID();
+                ImGui.separator();
+            }
+
+            ImGui.endChild();
+        } else {
+            ImGui.textDisabled("暂无事件，右键点击时间线添加事件");
         }
     }
 
@@ -235,13 +368,16 @@ public class Main extends Application {
                 ImFloat tempX = new ImFloat(value.coordX);
                 ImFloat tempY = new ImFloat(value.coordY);
                 ImFloat tempZ = new ImFloat(value.coordZ);
-                ImGui.text("X:"); ImGui.sameLine();
+                ImGui.text("X:");
+                ImGui.sameLine();
                 if (ImGui.inputFloat("##coord_x", tempX)) value.coordX = tempX.get();
                 ImGui.sameLine();
-                ImGui.text("Y:"); ImGui.sameLine();
+                ImGui.text("Y:");
+                ImGui.sameLine();
                 if (ImGui.inputFloat("##coord_y", tempY)) value.coordY = tempY.get();
                 ImGui.sameLine();
-                ImGui.text("Z:"); ImGui.sameLine();
+                ImGui.text("Z:");
+                ImGui.sameLine();
                 if (ImGui.inputFloat("##coord_z", tempZ)) value.coordZ = tempZ.get();
                 ImGui.popID();
             }
@@ -262,176 +398,11 @@ public class Main extends Application {
             case FLOAT -> String.valueOf(value.floatValue.get());
             case BOOLEAN -> String.valueOf(value.booleanValue.get());
             case COLOR -> String.format("#%02X%02X%02X%02X",
-                (int)(value.colorValue[0] * 255),
-                (int)(value.colorValue[1] * 255),
-                (int)(value.colorValue[2] * 255),
-                (int)(value.colorValue[3] * 255));
+                    (int) (value.colorValue[0] * 255),
+                    (int) (value.colorValue[1] * 255),
+                    (int) (value.colorValue[2] * 255),
+                    (int) (value.colorValue[3] * 255));
             case COORDINATES -> String.format("(%.2f, %.2f, %.2f)", value.coordX, value.coordY, value.coordZ);
         };
-    }
-
-    // 参数类型枚举
-    private enum ParameterType {
-        STRING, INT, FLOAT, BOOLEAN, COLOR, COORDINATES
-    }
-
-    // 参数定义记录类
-    private record ParameterDefinition(
-        String name,
-        ParameterType type,
-        String defaultValue,
-        String description
-    ) {}
-
-    // 参数值存储类
-    private static class ParameterValue {
-        ImString stringValue = new ImString(256);
-        ImInt intValue = new ImInt(0);
-        ImFloat floatValue = new ImFloat(0f);
-        ImBoolean booleanValue = new ImBoolean(false);
-        float[] colorValue = new float[]{1f, 1f, 1f, 1f};
-        float coordX = 0f, coordY = 0f, coordZ = 0f;
-
-        static ParameterValue create(ParameterType type, String defaultValue) {
-            ParameterValue v = new ParameterValue();
-            if (defaultValue != null && !defaultValue.isEmpty()) {
-                switch (type) {
-                    case STRING -> v.stringValue.set(defaultValue);
-                    case INT -> v.intValue.set(Integer.parseInt(defaultValue));
-                    case FLOAT -> v.floatValue.set(Float.parseFloat(defaultValue));
-                    case BOOLEAN -> v.booleanValue.set(Boolean.parseBoolean(defaultValue));
-                }
-            }
-            return v;
-        }
-    }
-
-    // 事件类型定义
-    private enum EventType {
-        // === 模型操作 ===
-        MODEL_SHOW("显示模型", "model_show",
-            new ParameterDefinition("模型标识符", ParameterType.STRING, "", "模型的唯一标识符"),
-            new ParameterDefinition("模型ID", ParameterType.STRING, "", "模型的资源ID"),
-            new ParameterDefinition("坐标/方位", ParameterType.COORDINATES, "", "X,Y,Z坐标")
-        ),
-        MODEL_HIDE("隐藏模型", "model_hide",
-            new ParameterDefinition("模型标识符", ParameterType.STRING, "", "要隐藏的模型标识符")
-        ),
-        MODEL_POS("模型坐标", "model_pos",
-            new ParameterDefinition("模型标识符", ParameterType.STRING, "", "模型的唯一标识符"),
-            new ParameterDefinition("坐标/方位", ParameterType.COORDINATES, "", "X,Y,Z坐标")
-        ),
-        MODEL_MOTION("执行动作", "model_motion",
-            new ParameterDefinition("模型标识符", ParameterType.STRING, "", "模型的唯一标识符"),
-            new ParameterDefinition("动作名称", ParameterType.STRING, "", "要执行的动作"),
-            new ParameterDefinition("循环播放", ParameterType.BOOLEAN, "false", "true=循环, false=单次")
-        ),
-        MODEL_SCALE("模型缩放", "model_scale",
-            new ParameterDefinition("模型标识符", ParameterType.STRING, "", "模型的唯一标识符"),
-            new ParameterDefinition("缩放比例", ParameterType.FLOAT, "1.0", "默认为1.0")
-        ),
-        MODEL_LIGHT("模型光照", "model_light",
-            new ParameterDefinition("模型标识符", ParameterType.STRING, "", "模型的唯一标识符"),
-            new ParameterDefinition("光照等级", ParameterType.INT, "15", "MC原版光照等级 0-15")
-        ),
-        MODEL_FOLLOW("模型跟随", "model_follow",
-            new ParameterDefinition("模型标识符", ParameterType.STRING, "", "模型的唯一标识符"),
-            new ParameterDefinition("启用跟随", ParameterType.BOOLEAN, "false", "是否跟随玩家")
-        ),
-        MODEL_COLOR("模型颜色", "model_color",
-            new ParameterDefinition("模型标识符", ParameterType.STRING, "", "模型的唯一标识符"),
-            new ParameterDefinition("颜色值", ParameterType.COLOR, "FFFFFFFF", "16进制ARGB颜色")
-        ),
-        MODEL_PAT("模型拍拍", "model_pat",
-            new ParameterDefinition("模型标识符", ParameterType.STRING, "", "要拍拍的模型标识符")
-        ),
-
-        // === 图片操作 ===
-        LOCAL_IMAGE("预定义本地图片", "local_image",
-            new ParameterDefinition("图片名称", ParameterType.STRING, "", "图片的唯一标识符"),
-            new ParameterDefinition("图片路径", ParameterType.STRING, "", "ResourceLocation路径")
-        ),
-        IMAGE_SHOW("显示图片", "image_show",
-            new ParameterDefinition("图片名称", ParameterType.STRING, "", "图片标识符"),
-            new ParameterDefinition("X坐标", ParameterType.FLOAT, "0", ""),
-            new ParameterDefinition("Y坐标", ParameterType.FLOAT, "0", ""),
-            new ParameterDefinition("宽度", ParameterType.STRING, "", "留空=默认256, 'full'=全屏, 或指定数值"),
-            new ParameterDefinition("高度", ParameterType.STRING, "", "留空=默认256, 或指定数值")
-        ),
-        IMAGE_HIDE("隐藏图片", "image_hide",
-            new ParameterDefinition("图片名称", ParameterType.STRING, "", "要隐藏的图片标识符")
-        ),
-        IMAGE_MOVE("移动图片", "image_move",
-            new ParameterDefinition("图片名称", ParameterType.STRING, "", "图片标识符"),
-            new ParameterDefinition("X坐标", ParameterType.FLOAT, "0", ""),
-            new ParameterDefinition("Y坐标", ParameterType.FLOAT, "0", "")
-        ),
-        IMAGE_CLEAR("清除所有图", "image_clear"),
-
-        // === 音乐/音效 ===
-        PLAY_SOUND("播放音效", "play_sound",
-            new ParameterDefinition("音效ID", ParameterType.STRING, "", "例如: minecraft:block.note_block.pling")
-        ),
-        PLAY_MUSIC("播放音乐", "play_music",
-            new ParameterDefinition("音乐URL", ParameterType.STRING, "", "音乐的URL地址")
-        ),
-        STOP_MUSIC("停止音乐", "stop_music"),
-
-        // === 场景 ===
-        SCENE_COLOR("场景颜色", "scene_color",
-            new ParameterDefinition("颜色值", ParameterType.COLOR, "00000000", "16进制ARGB颜色"),
-            new ParameterDefinition("持续时间(tick)", ParameterType.INT, "0", "淡入时间")
-        ),
-        SCENE_COLOR_CLEAR("场景颜色清除", "scene_color_clear"),
-        SCENE_TEXT("场景文字", "scene_text",
-            new ParameterDefinition("文本内容", ParameterType.STRING, "", "要显示的文字"),
-            new ParameterDefinition("持续时间(tick)", ParameterType.INT, "60", ""),
-            new ParameterDefinition("X坐标", ParameterType.FLOAT, "0", ""),
-            new ParameterDefinition("Y坐标", ParameterType.FLOAT, "0", ""),
-            new ParameterDefinition("颜色", ParameterType.COLOR, "FFFFFF", "可选: 16进制RGB颜色"),
-            new ParameterDefinition("淡入时间", ParameterType.INT, "0", "可选: 淡入时间(tick)"),
-            new ParameterDefinition("淡出时间", ParameterType.INT, "0", "可选: 淡出时间(tick)")
-        ),
-        SCENE_TEXT_CLEAR("场景文字清除", "scene_text_clear"),
-
-        // === 文字 ===
-        TEXT_SPEED("文字速度", "text_speed",
-            new ParameterDefinition("速度", ParameterType.INT, "1", "每多少tick播放一个字符")
-        ),
-        TEXT_POS("文本框位置", "text_pos",
-            new ParameterDefinition("X坐标", ParameterType.FLOAT, "0", ""),
-            new ParameterDefinition("Y坐标", ParameterType.FLOAT, "0", "")
-        ),
-        TEXT_COLOR("文本框背景", "text_color",
-            new ParameterDefinition("颜色值", ParameterType.STRING, "", "16进制RGB/ARGB颜色")
-        ),
-
-        // === 震屏 ===
-        SHAKE("震屏", "shake",
-            new ParameterDefinition("初始强度", ParameterType.FLOAT, "1.0", ""),
-            new ParameterDefinition("衰减速度", ParameterType.FLOAT, "0.1", "每tick衰减的值")
-        );
-
-        private final String displayName;
-        private final String command;
-        private final List<ParameterDefinition> parameters;
-
-        EventType(String displayName, String command, ParameterDefinition... parameters) {
-            this.displayName = displayName;
-            this.command = command;
-            this.parameters = List.of(parameters);
-        }
-
-        public String getDisplayName() {
-            return displayName;
-        }
-
-        public String getCommand() {
-            return command;
-        }
-
-        public List<ParameterDefinition> getParameters() {
-            return parameters;
-        }
     }
 }
