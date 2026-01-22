@@ -5,8 +5,12 @@ import imgui.app.Application;
 import imgui.app.Configuration;
 import imgui.type.ImInt;
 import imgui.type.ImString;
+import imgui.type.ImFloat;
+import imgui.type.ImBoolean;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Main extends Application {
     private static final float PIXELS_PER_SECOND_BASE = 100f;
@@ -14,12 +18,10 @@ public class Main extends Application {
     private static final float CULLING_MARGIN = 50f;
     private static final float MIN_TIME_STEP = 0.05f;
     private final float[] sceneColor = new float[]{1f, 1f, 1f, 1f};
-    private final float[] eventColor = new float[]{1f, 1f, 1f, 1f};
-    // 事件类型选择（默认为null，表示未选择）
+    // 事件类型选择
     private final ImInt selectedEventTypeIndex = new ImInt(0);
-    private final ImString[] eventInputs1 = new ImString[]{new ImString("")};
-    private final ImString[] eventInputs2 = new ImString[]{new ImString(""), new ImString("")};
-    private final ImString[] eventInputs3 = new ImString[]{new ImString(""), new ImString(""), new ImString("")};
+    // 参数值存储
+    private final List<ParameterValue> parameterValues = new ArrayList<>();
     private float timelineOffset = 0f;
     private float timelineZoom = 1f;
     private float currentTime = 0f;
@@ -161,39 +163,36 @@ public class Main extends Application {
 
             int previousIndex = selectedEventTypeIndex.get();
             if (ImGui.combo("##event_type", selectedEventTypeIndex, eventTypeNames)) {
-                // 切换事件类型时清空输入框
+                // 切换事件类型时重新初始化参数
                 if (previousIndex != selectedEventTypeIndex.get()) {
-                    clearEventInputs();
+                    initParameterValues(eventTypes[selectedEventTypeIndex.get()]);
                 }
             }
 
             ImGui.separator();
 
-            // 根据选择的事件类型显示相应数量的输入框
+            // 根据选择的事件类型显示相应的参数输入控件
             EventType currentEventType = eventTypes[selectedEventTypeIndex.get()];
-            int inputCount = currentEventType.getInputCount();
+            List<ParameterDefinition> params = currentEventType.getParameters();
 
             ImGui.text("事件参数:");
-            ImString[] currentInputs = getEventInputsArray(inputCount);
-
-            for (int i = 0; i < inputCount; i++) {
-                ImGui.inputText("参数 " + (i + 1) + "##input_" + i, currentInputs[i]);
+            for (int i = 0; i < params.size(); i++) {
+                ParameterDefinition param = params.get(i);
+                // 确保有足够的ParameterValue
+                ensureParameterCapacity(i);
+                ParameterValue paramValue = parameterValues.get(i);
+                renderParameterInput(param, paramValue, i);
             }
 
             ImGui.separator();
-            ImGui.text("事件颜色:");
-            ImGui.colorEdit4("##event_color", eventColor);
-
-            ImGui.separator();
             if (ImGui.button("确定")) {
-                // TODO: 根据选择的事件类型和输入参数添加事件
                 EventType selectedType = eventTypes[selectedEventTypeIndex.get()];
-                ImString[] inputs = getEventInputsArray(selectedType.getInputCount());
-
-                System.out.println("添加事件: " + selectedType.getDisplayName());
+                System.out.println("添加事件: " + selectedType.getCommand());
                 System.out.println("时间: " + rightClickTime + "s");
-                for (int i = 0; i < inputs.length; i++) {
-                    System.out.println("参数 " + (i + 1) + ": " + inputs[i].get());
+                for (int i = 0; i < parameterValues.size() && i < selectedType.getParameters().size(); i++) {
+                    ParameterDefinition param = selectedType.getParameters().get(i);
+                    ParameterValue value = parameterValues.get(i);
+                    System.out.println("  " + param.name() + ": " + getValueAsString(value, param.type()));
                 }
 
                 ImGui.closeCurrentPopup();
@@ -209,40 +208,230 @@ public class Main extends Application {
         }
     }
 
-    private void clearEventInputs() {
-        for (ImString imString : eventInputs1) imString.set("");
-        for (ImString imString : eventInputs2) imString.set("");
-        for (ImString imString : eventInputs3) imString.set("");
+    private void initParameterValues(EventType eventType) {
+        parameterValues.clear();
+        for (ParameterDefinition param : eventType.getParameters()) {
+            parameterValues.add(ParameterValue.create(param.type(), param.defaultValue()));
+        }
     }
 
-    private ImString[] getEventInputsArray(int inputCount) {
-        return switch (inputCount) {
-            case 1 -> eventInputs1;
-            case 2 -> eventInputs2;
-            case 3 -> eventInputs3;
-            default -> eventInputs2;
+    private void ensureParameterCapacity(int index) {
+        while (parameterValues.size() <= index) {
+            parameterValues.add(new ParameterValue());
+        }
+    }
+
+    private void renderParameterInput(ParameterDefinition param, ParameterValue value, int index) {
+        String label = param.name() + "##param_" + index;
+        switch (param.type()) {
+            case STRING -> ImGui.inputText(label, value.stringValue);
+            case INT -> ImGui.inputInt(label, value.intValue);
+            case FLOAT -> ImGui.inputFloat(label, value.floatValue);
+            case BOOLEAN -> ImGui.checkbox(label, value.booleanValue);
+            case COLOR -> ImGui.colorEdit4(label, value.colorValue);
+            case COORDINATES -> {
+                ImGui.text(param.name());
+                ImGui.pushID(index);
+                ImFloat tempX = new ImFloat(value.coordX);
+                ImFloat tempY = new ImFloat(value.coordY);
+                ImFloat tempZ = new ImFloat(value.coordZ);
+                ImGui.text("X:"); ImGui.sameLine();
+                if (ImGui.inputFloat("##coord_x", tempX)) value.coordX = tempX.get();
+                ImGui.sameLine();
+                ImGui.text("Y:"); ImGui.sameLine();
+                if (ImGui.inputFloat("##coord_y", tempY)) value.coordY = tempY.get();
+                ImGui.sameLine();
+                ImGui.text("Z:"); ImGui.sameLine();
+                if (ImGui.inputFloat("##coord_z", tempZ)) value.coordZ = tempZ.get();
+                ImGui.popID();
+            }
+        }
+        if (param.description() != null && !param.description().isEmpty()) {
+            ImGui.sameLine();
+            ImGui.textDisabled("(?)");
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip(param.description());
+            }
+        }
+    }
+
+    private String getValueAsString(ParameterValue value, ParameterType type) {
+        return switch (type) {
+            case STRING -> value.stringValue.get();
+            case INT -> String.valueOf(value.intValue.get());
+            case FLOAT -> String.valueOf(value.floatValue.get());
+            case BOOLEAN -> String.valueOf(value.booleanValue.get());
+            case COLOR -> String.format("#%02X%02X%02X%02X",
+                (int)(value.colorValue[0] * 255),
+                (int)(value.colorValue[1] * 255),
+                (int)(value.colorValue[2] * 255),
+                (int)(value.colorValue[3] * 255));
+            case COORDINATES -> String.format("(%.2f, %.2f, %.2f)", value.coordX, value.coordY, value.coordZ);
         };
+    }
+
+    // 参数类型枚举
+    private enum ParameterType {
+        STRING, INT, FLOAT, BOOLEAN, COLOR, COORDINATES
+    }
+
+    // 参数定义记录类
+    private record ParameterDefinition(
+        String name,
+        ParameterType type,
+        String defaultValue,
+        String description
+    ) {}
+
+    // 参数值存储类
+    private static class ParameterValue {
+        ImString stringValue = new ImString(256);
+        ImInt intValue = new ImInt(0);
+        ImFloat floatValue = new ImFloat(0f);
+        ImBoolean booleanValue = new ImBoolean(false);
+        float[] colorValue = new float[]{1f, 1f, 1f, 1f};
+        float coordX = 0f, coordY = 0f, coordZ = 0f;
+
+        static ParameterValue create(ParameterType type, String defaultValue) {
+            ParameterValue v = new ParameterValue();
+            if (defaultValue != null && !defaultValue.isEmpty()) {
+                switch (type) {
+                    case STRING -> v.stringValue.set(defaultValue);
+                    case INT -> v.intValue.set(Integer.parseInt(defaultValue));
+                    case FLOAT -> v.floatValue.set(Float.parseFloat(defaultValue));
+                    case BOOLEAN -> v.booleanValue.set(Boolean.parseBoolean(defaultValue));
+                }
+            }
+            return v;
+        }
     }
 
     // 事件类型定义
     private enum EventType {
-        TWO_INPUTS("双参数事件", 2),
-        THREE_INPUTS("三参数事件", 3);
+        // === 模型操作 ===
+        MODEL_SHOW("显示模型", "model_show",
+            new ParameterDefinition("模型标识符", ParameterType.STRING, "", "模型的唯一标识符"),
+            new ParameterDefinition("模型ID", ParameterType.STRING, "", "模型的资源ID"),
+            new ParameterDefinition("坐标/方位", ParameterType.COORDINATES, "", "X,Y,Z坐标")
+        ),
+        MODEL_HIDE("隐藏模型", "model_hide",
+            new ParameterDefinition("模型标识符", ParameterType.STRING, "", "要隐藏的模型标识符")
+        ),
+        MODEL_POS("模型坐标", "model_pos",
+            new ParameterDefinition("模型标识符", ParameterType.STRING, "", "模型的唯一标识符"),
+            new ParameterDefinition("坐标/方位", ParameterType.COORDINATES, "", "X,Y,Z坐标")
+        ),
+        MODEL_MOTION("执行动作", "model_motion",
+            new ParameterDefinition("模型标识符", ParameterType.STRING, "", "模型的唯一标识符"),
+            new ParameterDefinition("动作名称", ParameterType.STRING, "", "要执行的动作"),
+            new ParameterDefinition("循环播放", ParameterType.BOOLEAN, "false", "true=循环, false=单次")
+        ),
+        MODEL_SCALE("模型缩放", "model_scale",
+            new ParameterDefinition("模型标识符", ParameterType.STRING, "", "模型的唯一标识符"),
+            new ParameterDefinition("缩放比例", ParameterType.FLOAT, "1.0", "默认为1.0")
+        ),
+        MODEL_LIGHT("模型光照", "model_light",
+            new ParameterDefinition("模型标识符", ParameterType.STRING, "", "模型的唯一标识符"),
+            new ParameterDefinition("光照等级", ParameterType.INT, "15", "MC原版光照等级 0-15")
+        ),
+        MODEL_FOLLOW("模型跟随", "model_follow",
+            new ParameterDefinition("模型标识符", ParameterType.STRING, "", "模型的唯一标识符"),
+            new ParameterDefinition("启用跟随", ParameterType.BOOLEAN, "false", "是否跟随玩家")
+        ),
+        MODEL_COLOR("模型颜色", "model_color",
+            new ParameterDefinition("模型标识符", ParameterType.STRING, "", "模型的唯一标识符"),
+            new ParameterDefinition("颜色值", ParameterType.COLOR, "FFFFFFFF", "16进制ARGB颜色")
+        ),
+        MODEL_PAT("模型拍拍", "model_pat",
+            new ParameterDefinition("模型标识符", ParameterType.STRING, "", "要拍拍的模型标识符")
+        ),
+
+        // === 图片操作 ===
+        LOCAL_IMAGE("预定义本地图片", "local_image",
+            new ParameterDefinition("图片名称", ParameterType.STRING, "", "图片的唯一标识符"),
+            new ParameterDefinition("图片路径", ParameterType.STRING, "", "ResourceLocation路径")
+        ),
+        IMAGE_SHOW("显示图片", "image_show",
+            new ParameterDefinition("图片名称", ParameterType.STRING, "", "图片标识符"),
+            new ParameterDefinition("X坐标", ParameterType.FLOAT, "0", ""),
+            new ParameterDefinition("Y坐标", ParameterType.FLOAT, "0", ""),
+            new ParameterDefinition("宽度", ParameterType.STRING, "", "留空=默认256, 'full'=全屏, 或指定数值"),
+            new ParameterDefinition("高度", ParameterType.STRING, "", "留空=默认256, 或指定数值")
+        ),
+        IMAGE_HIDE("隐藏图片", "image_hide",
+            new ParameterDefinition("图片名称", ParameterType.STRING, "", "要隐藏的图片标识符")
+        ),
+        IMAGE_MOVE("移动图片", "image_move",
+            new ParameterDefinition("图片名称", ParameterType.STRING, "", "图片标识符"),
+            new ParameterDefinition("X坐标", ParameterType.FLOAT, "0", ""),
+            new ParameterDefinition("Y坐标", ParameterType.FLOAT, "0", "")
+        ),
+        IMAGE_CLEAR("清除所有图", "image_clear"),
+
+        // === 音乐/音效 ===
+        PLAY_SOUND("播放音效", "play_sound",
+            new ParameterDefinition("音效ID", ParameterType.STRING, "", "例如: minecraft:block.note_block.pling")
+        ),
+        PLAY_MUSIC("播放音乐", "play_music",
+            new ParameterDefinition("音乐URL", ParameterType.STRING, "", "音乐的URL地址")
+        ),
+        STOP_MUSIC("停止音乐", "stop_music"),
+
+        // === 场景 ===
+        SCENE_COLOR("场景颜色", "scene_color",
+            new ParameterDefinition("颜色值", ParameterType.COLOR, "00000000", "16进制ARGB颜色"),
+            new ParameterDefinition("持续时间(tick)", ParameterType.INT, "0", "淡入时间")
+        ),
+        SCENE_COLOR_CLEAR("场景颜色清除", "scene_color_clear"),
+        SCENE_TEXT("场景文字", "scene_text",
+            new ParameterDefinition("文本内容", ParameterType.STRING, "", "要显示的文字"),
+            new ParameterDefinition("持续时间(tick)", ParameterType.INT, "60", ""),
+            new ParameterDefinition("X坐标", ParameterType.FLOAT, "0", ""),
+            new ParameterDefinition("Y坐标", ParameterType.FLOAT, "0", ""),
+            new ParameterDefinition("颜色", ParameterType.COLOR, "FFFFFF", "可选: 16进制RGB颜色"),
+            new ParameterDefinition("淡入时间", ParameterType.INT, "0", "可选: 淡入时间(tick)"),
+            new ParameterDefinition("淡出时间", ParameterType.INT, "0", "可选: 淡出时间(tick)")
+        ),
+        SCENE_TEXT_CLEAR("场景文字清除", "scene_text_clear"),
+
+        // === 文字 ===
+        TEXT_SPEED("文字速度", "text_speed",
+            new ParameterDefinition("速度", ParameterType.INT, "1", "每多少tick播放一个字符")
+        ),
+        TEXT_POS("文本框位置", "text_pos",
+            new ParameterDefinition("X坐标", ParameterType.FLOAT, "0", ""),
+            new ParameterDefinition("Y坐标", ParameterType.FLOAT, "0", "")
+        ),
+        TEXT_COLOR("文本框背景", "text_color",
+            new ParameterDefinition("颜色值", ParameterType.STRING, "", "16进制RGB/ARGB颜色")
+        ),
+
+        // === 震屏 ===
+        SHAKE("震屏", "shake",
+            new ParameterDefinition("初始强度", ParameterType.FLOAT, "1.0", ""),
+            new ParameterDefinition("衰减速度", ParameterType.FLOAT, "0.1", "每tick衰减的值")
+        );
 
         private final String displayName;
-        private final int inputCount;
+        private final String command;
+        private final List<ParameterDefinition> parameters;
 
-        EventType(String displayName, int inputCount) {
+        EventType(String displayName, String command, ParameterDefinition... parameters) {
             this.displayName = displayName;
-            this.inputCount = inputCount;
+            this.command = command;
+            this.parameters = List.of(parameters);
         }
 
         public String getDisplayName() {
             return displayName;
         }
 
-        public int getInputCount() {
-            return inputCount;
+        public String getCommand() {
+            return command;
+        }
+
+        public List<ParameterDefinition> getParameters() {
+            return parameters;
         }
     }
 }
