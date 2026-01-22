@@ -37,4 +37,10 @@ public class ModelShowAction extends Action {
     public String getDisplayName() {
         return String.format("显示模型: %s (%.2f, %.2f, %.2f)", modelId, x, y, z);
     }
+
+    @Override
+    public String toScriptString() {
+        return String.format("{action=model_show %s %s %.2f %.2f %.2f}",
+            modelId, resourceId, x, y, z);
+    }
 }

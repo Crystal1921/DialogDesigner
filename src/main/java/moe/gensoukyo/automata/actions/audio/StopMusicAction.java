@@ -25,4 +25,9 @@ public class StopMusicAction extends Action {
     public String getDisplayName() {
         return "停止音乐";
     }
+
+    @Override
+    public String toScriptString() {
+        return "{action=stop_music}";
+    }
 }

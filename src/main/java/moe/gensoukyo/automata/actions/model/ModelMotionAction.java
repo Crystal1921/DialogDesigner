@@ -36,4 +36,10 @@ public class ModelMotionAction extends Action {
         return String.format("执行动作: %s - %s (%s)",
             modelId, motionName, loop ? "循环" : "单次");
     }
+
+    @Override
+    public String toScriptString() {
+        return String.format("{action=model_motion %s %s %b}",
+            modelId, motionName, loop);
+    }
 }

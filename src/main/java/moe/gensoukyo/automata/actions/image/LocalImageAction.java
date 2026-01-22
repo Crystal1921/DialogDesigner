@@ -33,4 +33,10 @@ public class LocalImageAction extends Action {
     public String getDisplayName() {
         return String.format("本地图片: %s -> %s", imageName, imagePath);
     }
+
+    @Override
+    public String toScriptString() {
+        return String.format("{action=local_image %s %s}",
+            imageName, imagePath);
+    }
 }

@@ -29,4 +29,9 @@ public class ModelHideAction extends Action {
     public String getDisplayName() {
         return String.format("隐藏模型: %s", modelId);
     }
+
+    @Override
+    public String toScriptString() {
+        return String.format("{action=model_hide %s}", modelId);
+    }
 }

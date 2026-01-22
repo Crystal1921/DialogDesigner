@@ -25,4 +25,9 @@ public class SceneTextClearAction extends Action {
     public String getDisplayName() {
         return "清除场景文字";
     }
+
+    @Override
+    public String toScriptString() {
+        return "{action=scene_text_clear}";
+    }
 }

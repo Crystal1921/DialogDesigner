@@ -25,4 +25,9 @@ public class ImageClearAction extends Action {
     public String getDisplayName() {
         return "清除所有图片";
     }
+
+    @Override
+    public String toScriptString() {
+        return "{action=image_clear}";
+    }
 }

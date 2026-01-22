@@ -12,6 +12,9 @@ import moe.gensoukyo.automata.actions.parameter.ParameterDefinition;
 import moe.gensoukyo.automata.actions.parameter.ParameterType;
 import moe.gensoukyo.automata.actions.parameter.ParameterValue;
 
+import javax.swing.*;
+import javax.swing.filechooser.FileNameExtensionFilter;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -79,6 +82,19 @@ public class Main extends Application {
         ImGui.text("拖动滑动并可缩放的时间条演示");
         ImGui.colorEdit4("scene_color", sceneColor);
         ImGui.text(String.format("当前时间: %.2fs (最小刻度 %.2fs)", currentTime, MIN_TIME_STEP));
+
+        // 导出按钮
+        if (ImGui.button("导出脚本")) {
+            exportScript();
+        }
+        ImGui.sameLine();
+        if (eventData.isEmpty()) {
+            ImGui.textDisabled("(暂无事件可导出)");
+        } else {
+            ImGui.textDisabled("(共 " + eventData.size() + " 个时间点, " +
+                    eventData.values().stream().mapToInt(List::size).sum() + " 个事件)");
+        }
+
         drawTimeline();
         drawRightClickPopup();
         drawEventList();
@@ -404,5 +420,82 @@ public class Main extends Application {
                     (int) (value.colorValue[3] * 255));
             case COORDINATES -> String.format("(%.2f, %.2f, %.2f)", value.coordX, value.coordY, value.coordZ);
         };
+    }
+
+    /**
+     * 导出脚本到文件
+     */
+    private void exportScript() {
+        if (eventData.isEmpty()) {
+            System.err.println("没有事件可导出");
+            return;
+        }
+
+        try {
+            // 生成脚本内容
+            StringBuilder script = new StringBuilder();
+            script.append("@Cinematic\n");
+
+            // 遍历所有时间点
+            for (Map.Entry<Integer, List<Action>> entry : eventData.entrySet()) {
+                int timeKey = entry.getKey();
+                List<Action> actions = entry.getValue();
+
+                // 时间转换为游戏刻 (1刻 = 0.05秒 = 5 timeKey单位)
+                int ticks = timeKey / 5;
+
+                // 生成时间行
+                script.append(String.format("%d:", ticks));
+
+                // 添加所有动作
+                for (Action action : actions) {
+                    script.append(" ").append(action.toScriptString());
+                }
+
+                script.append("\n");
+            }
+
+            // 创建文件选择器
+            JFileChooser fileChooser = new JFileChooser();
+            fileChooser.setDialogTitle("保存脚本文件");
+            fileChooser.setDialogType(JFileChooser.SAVE_DIALOG);
+
+            // 设置文件过滤器
+            FileNameExtensionFilter filter = new FileNameExtensionFilter(
+                    "文本文件 (*.txt)", "txt");
+            fileChooser.setFileFilter(filter);
+
+            // 设置默认文件名
+            fileChooser.setSelectedFile(new java.io.File("cinematic.txt"));
+
+            // 显示保存对话框
+            int userSelection = fileChooser.showSaveDialog(null);
+
+            if (userSelection == JFileChooser.APPROVE_OPTION) {
+                java.io.File fileToSave = fileChooser.getSelectedFile();
+
+                // 确保文件以.txt结尾
+                if (!fileToSave.getName().toLowerCase().endsWith(".txt")) {
+                    fileToSave = new java.io.File(fileToSave.getParentFile(), fileToSave.getName() + ".txt");
+                }
+
+                // 写入文件
+                try (FileWriter writer = new FileWriter(fileToSave)) {
+                    writer.write(script.toString());
+                }
+
+                System.out.println("脚本已导出到: " + fileToSave.getAbsolutePath());
+                System.out.println("共 " + eventData.size() + " 个时间点");
+
+                // 同时输出到控制台以便预览
+                System.out.println("\n========== 导出的脚本 ==========");
+                System.out.print(script);
+                System.out.println("========== 脚本结束 ==========\n");
+            }
+
+        } catch (Exception e) {
+            System.err.println("导出脚本失败: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 }

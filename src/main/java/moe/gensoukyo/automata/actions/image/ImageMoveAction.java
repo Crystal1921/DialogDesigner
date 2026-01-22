@@ -32,4 +32,10 @@ public class ImageMoveAction extends Action {
     public String getDisplayName() {
         return String.format("移动图片: %s (%.1f, %.1f)", imageName, x, y);
     }
+
+    @Override
+    public String toScriptString() {
+        return String.format("{action=image_move %s %.1f %.1f}",
+            imageName, x, y);
+    }
 }

@@ -30,6 +30,12 @@ public class ShakeAction extends Action {
 
     @Override
     public String getDisplayName() {
-        return String.format("震屏: 强度%.2f 衰减%.2f", initialStrength, decayRate);
+        return String.format("震动: 强度%.2f 衰减%.2f", initialStrength, decayRate);
+    }
+
+    @Override
+    public String toScriptString() {
+        return String.format("{action=shake %.2f %.2f}",
+            initialStrength, decayRate);
     }
 }

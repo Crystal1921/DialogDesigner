@@ -29,4 +29,9 @@ public class PlaySoundAction extends Action {
     public String getDisplayName() {
         return String.format("播放音效: %s", soundId);
     }
+
+    @Override
+    public String toScriptString() {
+        return String.format("{action=play_sound %s}", soundId);
+    }
 }

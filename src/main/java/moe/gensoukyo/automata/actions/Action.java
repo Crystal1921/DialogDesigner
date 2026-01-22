@@ -39,4 +39,10 @@ public abstract class Action {
      * 获取显示名称
      */
     public abstract String getDisplayName();
+
+    /**
+     * 生成脚本字符串
+     * 格式: {action=command 参数1 参数2 ...}
+     */
+    public abstract String toScriptString();
 }

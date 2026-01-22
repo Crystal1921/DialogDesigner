@@ -29,4 +29,9 @@ public class ImageHideAction extends Action {
     public String getDisplayName() {
         return String.format("隐藏图片: %s", imageName);
     }
+
+    @Override
+    public String toScriptString() {
+        return String.format("{action=image_hide %s}", imageName);
+    }
 }

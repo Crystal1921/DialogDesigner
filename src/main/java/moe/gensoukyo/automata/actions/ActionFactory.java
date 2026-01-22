@@ -72,8 +72,7 @@ public class ActionFactory {
             case PLAY_MUSIC -> new PlayMusicAction(timeKey, values.get(0).stringValue.get());
             case STOP_MUSIC -> new StopMusicAction(timeKey);
             case SCENE_COLOR -> new SceneColorAction(timeKey,
-                values.get(0).colorValue.clone(),
-                values.get(1).intValue.get());
+                values.get(0).colorValue.clone());
             case SCENE_COLOR_CLEAR -> new SceneColorClearAction(timeKey);
             case SCENE_TEXT -> new SceneTextAction(timeKey,
                 values.get(0).stringValue.get(),

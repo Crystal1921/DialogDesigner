@@ -29,4 +29,9 @@ public class TextColorAction extends Action {
     public String getDisplayName() {
         return String.format("文本框背景: %s", color);
     }
+
+    @Override
+    public String toScriptString() {
+        return String.format("{action=text_color %s}", color);
+    }
 }

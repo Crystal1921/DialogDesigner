@@ -25,4 +25,9 @@ public class SceneColorClearAction extends Action {
     public String getDisplayName() {
         return "清除场景颜色";
     }
+
+    @Override
+    public String toScriptString() {
+        return "{action=scene_color_clear}";
+    }
 }

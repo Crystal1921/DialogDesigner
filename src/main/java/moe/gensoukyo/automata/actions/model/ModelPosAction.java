@@ -33,4 +33,10 @@ public class ModelPosAction extends Action {
     public String getDisplayName() {
         return String.format("模型坐标: %s (%.2f, %.2f, %.2f)", modelId, x, y, z);
     }
+
+    @Override
+    public String toScriptString() {
+        return String.format("{action=model_pos %s %.2f %.2f %.2f}",
+            modelId, x, y, z);
+    }
 }

@@ -29,4 +29,9 @@ public class ModelPatAction extends Action {
     public String getDisplayName() {
         return String.format("模型拍拍: %s", modelId);
     }
+
+    @Override
+    public String toScriptString() {
+        return String.format("{action=model_pat %s}", modelId);
+    }
 }

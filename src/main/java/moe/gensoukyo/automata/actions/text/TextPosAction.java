@@ -29,4 +29,9 @@ public class TextPosAction extends Action {
     public String getDisplayName() {
         return String.format("文本框位置: (%.1f, %.1f)", x, y);
     }
+
+    @Override
+    public String toScriptString() {
+        return String.format("{action=text_pos %.1f %.1f}", x, y);
+    }
 }

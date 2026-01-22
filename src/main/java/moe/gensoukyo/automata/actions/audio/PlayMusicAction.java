@@ -29,4 +29,9 @@ public class PlayMusicAction extends Action {
     public String getDisplayName() {
         return String.format("播放音乐: %s", musicUrl);
     }
+
+    @Override
+    public String toScriptString() {
+        return String.format("{action=play_music %s}", musicUrl);
+    }
 }

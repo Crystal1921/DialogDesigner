@@ -31,4 +31,10 @@ public class ModelScaleAction extends Action {
     public String getDisplayName() {
         return String.format("模型缩放: %s (%.2fx)", modelId, scale);
     }
+
+    @Override
+    public String toScriptString() {
+        return String.format("{action=model_scale %s %.2f}",
+            modelId, scale);
+    }
 }

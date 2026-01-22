@@ -107,7 +107,7 @@ public enum EventType {
     ),
 
     // === 震屏 ===
-    SHAKE("震屏", "shake",
+    SHAKE("震动", "shake",
         new ParameterDefinition("初始强度", ParameterType.FLOAT, "1.0", ""),
         new ParameterDefinition("衰减速度", ParameterType.FLOAT, "0.1", "每tick衰减的值")
     );

@@ -36,4 +36,16 @@ public class ModelColorAction extends Action {
             (int)(color[2] * 255),
             (int)(color[3] * 255));
     }
+
+    @Override
+    public String toScriptString() {
+        // 转换为16进制ARGB格式
+        String colorHex = String.format("%02X%02X%02X%02X",
+            (int)(color[3] * 255), // Alpha
+            (int)(color[0] * 255), // Red
+            (int)(color[1] * 255), // Green
+            (int)(color[2] * 255)); // Blue
+        return String.format("{action=model_color %s %s}",
+            modelId, colorHex);
+    }
 }

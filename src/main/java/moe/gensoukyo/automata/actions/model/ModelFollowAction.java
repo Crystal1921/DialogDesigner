@@ -31,4 +31,10 @@ public class ModelFollowAction extends Action {
     public String getDisplayName() {
         return String.format("模型跟随: %s (%s)", modelId, follow ? "启用" : "禁用");
     }
+
+    @Override
+    public String toScriptString() {
+        return String.format("{action=model_follow %s %b}",
+            modelId, follow);
+    }
 }

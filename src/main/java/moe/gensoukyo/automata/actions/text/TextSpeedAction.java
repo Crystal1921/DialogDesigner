@@ -29,4 +29,9 @@ public class TextSpeedAction extends Action {
     public String getDisplayName() {
         return String.format("文字速度: %d tick/字符", speed);
     }
+
+    @Override
+    public String toScriptString() {
+        return String.format("{action=text_speed %d}", speed);
+    }
 }

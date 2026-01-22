@@ -33,4 +33,10 @@ public class ModelLightAction extends Action {
     public String getDisplayName() {
         return String.format("模型光照: %s (%d)", modelId, lightLevel);
     }
+
+    @Override
+    public String toScriptString() {
+        return String.format("{action=model_light %s %d}",
+            modelId, lightLevel);
+    }
 }
