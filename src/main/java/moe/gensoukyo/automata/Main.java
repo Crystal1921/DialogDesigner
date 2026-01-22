@@ -3,6 +3,7 @@ package moe.gensoukyo.automata;
 import imgui.*;
 import imgui.app.Application;
 import imgui.app.Configuration;
+import imgui.flag.ImGuiComboFlags;
 import imgui.type.ImFloat;
 import imgui.type.ImInt;
 import moe.gensoukyo.automata.actions.Action;
@@ -46,7 +47,7 @@ public class Main extends Application {
 
     @Override
     protected void configure(Configuration config) {
-        config.setTitle("Dear ImGui is Awesome!");
+        config.setTitle("Cinematic Action");
     }
 
     @Override
@@ -133,8 +134,7 @@ public class Main extends Application {
             float mouseX = ImGui.getIO().getMousePosX();
             float worldSeconds = (mouseX - timelineStartX - timelineOffset) / (PIXELS_PER_SECOND_BASE * timelineZoom);
             worldSeconds = Math.max(0f, worldSeconds);
-            float snapped = Math.round(worldSeconds / MIN_TIME_STEP) * MIN_TIME_STEP;
-            currentTime = snapped;
+            currentTime = Math.round(worldSeconds / MIN_TIME_STEP) * MIN_TIME_STEP;
         }
 
         // 右键点击检测
@@ -142,8 +142,7 @@ public class Main extends Application {
             float mouseX = ImGui.getIO().getMousePosX();
             float worldSeconds = (mouseX - timelineStartX - timelineOffset) / (PIXELS_PER_SECOND_BASE * timelineZoom);
             worldSeconds = Math.max(0f, worldSeconds);
-            float snapped = Math.round(worldSeconds / MIN_TIME_STEP) * MIN_TIME_STEP;
-            rightClickTime = snapped;
+            rightClickTime = Math.round(worldSeconds / MIN_TIME_STEP) * MIN_TIME_STEP;
             showRightClickPopup = true;
             ImGui.openPopup("Event Popup");
         }
@@ -233,7 +232,7 @@ public class Main extends Application {
             }
 
             int previousIndex = selectedEventTypeIndex.get();
-            if (ImGui.combo("##event_type", selectedEventTypeIndex, eventTypeNames)) {
+            if (ImGui.combo("##event_type", selectedEventTypeIndex, eventTypeNames, ImGuiComboFlags.HeightLargest)) {
                 // 切换事件类型时重新初始化参数
                 if (previousIndex != selectedEventTypeIndex.get()) {
                     initParameterValues(eventTypes[selectedEventTypeIndex.get()]);

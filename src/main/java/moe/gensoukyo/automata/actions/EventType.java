@@ -80,7 +80,7 @@ public enum EventType {
     // === 场景 ===
     SCENE_COLOR("场景颜色", "scene_color",
         new ParameterDefinition("颜色值", ParameterType.COLOR, "00000000", "16进制ARGB颜色"),
-        new ParameterDefinition("持续时间(tick)", ParameterType.INT, "0", "淡入时间")
+        new ParameterDefinition("淡入时间(tick)", ParameterType.INT, "0", "淡入时间")
     ),
     SCENE_COLOR_CLEAR("场景颜色清除", "scene_color_clear"),
     SCENE_TEXT("场景文字", "scene_text",
@@ -103,7 +103,7 @@ public enum EventType {
         new ParameterDefinition("Y坐标", ParameterType.FLOAT, "0", "")
     ),
     TEXT_COLOR("文本框背景", "text_color",
-        new ParameterDefinition("颜色值", ParameterType.STRING, "", "16进制RGB/ARGB颜色")
+        new ParameterDefinition("颜色", ParameterType.COLOR, "", "16进制RGB/ARGB颜色")
     ),
 
     // === 震屏 ===

@@ -8,10 +8,12 @@ import moe.gensoukyo.automata.actions.EventType;
  */
 public class SceneColorAction extends Action {
     public final float[] color;
+    public int fadeInTime;
 
-    public SceneColorAction(int timeKey, float[] color) {
+    public SceneColorAction(int timeKey, float[] color, int fadeInTime) {
         super(EventType.SCENE_COLOR, timeKey);
         this.color = color;
+        this.fadeInTime = fadeInTime;
     }
 
     @Override
@@ -30,7 +32,8 @@ public class SceneColorAction extends Action {
             (int)(color[0] * 255),
             (int)(color[1] * 255),
             (int)(color[2] * 255),
-            (int)(color[3] * 255));
+            (int)(color[3] * 255),
+            fadeInTime);
     }
 
     @Override
