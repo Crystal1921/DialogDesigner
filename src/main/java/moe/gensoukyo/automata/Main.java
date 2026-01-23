@@ -12,9 +12,7 @@ import moe.gensoukyo.automata.actions.ActionFactory;
 import moe.gensoukyo.automata.actions.EventType;
 import moe.gensoukyo.automata.actions.image.ImageDefinition;
 import moe.gensoukyo.automata.actions.image.ImageType;
-import moe.gensoukyo.automata.actions.image.ImageShowAction;
-import moe.gensoukyo.automata.actions.image.ImageHideAction;
-import moe.gensoukyo.automata.actions.image.ImageMoveAction;
+import moe.gensoukyo.automata.actions.image.ImageAction;
 import moe.gensoukyo.automata.actions.parameter.ParameterDefinition;
 import moe.gensoukyo.automata.actions.parameter.ParameterType;
 import moe.gensoukyo.automata.actions.parameter.ParameterValue;
@@ -92,7 +90,6 @@ public class Main extends Application {
 
     @Override
     public void process() {
-
         ImGui.text("拖动滑动并可缩放的时间条演示");
         ImGui.colorEdit4("scene_color", sceneColor);
         ImGui.text(String.format("当前时间: %.2fs (最小刻度 %.2fs)", currentTime, MIN_TIME_STEP));
@@ -584,12 +581,11 @@ public class Main extends Application {
             // 收集所有使用到的图片名称
             for (List<Action> actions : eventData.values()) {
                 for (Action action : actions) {
-                    if (action instanceof ImageShowAction imgShow) {
-                        usedImageNames.add(imgShow.imageName);
-                    } else if (action instanceof ImageHideAction imgHide) {
-                        usedImageNames.add(imgHide.imageName);
-                    } else if (action instanceof ImageMoveAction imgMove) {
-                        usedImageNames.add(imgMove.imageName);
+                    if (action instanceof ImageAction imageAction) {
+                        String imageName = imageAction.getImageName();
+                        if (imageName != null && !imageName.isEmpty()) {
+                            usedImageNames.add(imageName);
+                        }
                     }
                 }
             }

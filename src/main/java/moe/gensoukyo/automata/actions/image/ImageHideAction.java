@@ -1,17 +1,21 @@
 package moe.gensoukyo.automata.actions.image;
 
-import moe.gensoukyo.automata.actions.Action;
 import moe.gensoukyo.automata.actions.EventType;
 
 /**
  * 隐藏图片事件
  */
-public class ImageHideAction extends Action {
+public class ImageHideAction extends ImageAction {
     public final String imageName;
 
     public ImageHideAction(int timeKey, String imageName) {
         super(EventType.IMAGE_HIDE, timeKey);
         this.imageName = imageName;
+    }
+
+    @Override
+    public String getImageName() {
+        return imageName;
     }
 
     @Override

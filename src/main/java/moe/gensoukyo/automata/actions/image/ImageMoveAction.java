@@ -1,12 +1,11 @@
 package moe.gensoukyo.automata.actions.image;
 
-import moe.gensoukyo.automata.actions.Action;
 import moe.gensoukyo.automata.actions.EventType;
 
 /**
  * 移动图片事件
  */
-public class ImageMoveAction extends Action {
+public class ImageMoveAction extends ImageAction {
     public final String imageName;
     public final float x, y;
 
@@ -15,6 +14,11 @@ public class ImageMoveAction extends Action {
         this.imageName = imageName;
         this.x = x;
         this.y = y;
+    }
+
+    @Override
+    public String getImageName() {
+        return imageName;
     }
 
     @Override
