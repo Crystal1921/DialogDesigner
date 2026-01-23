@@ -6,9 +6,15 @@ import imgui.app.Configuration;
 import imgui.flag.ImGuiComboFlags;
 import imgui.type.ImFloat;
 import imgui.type.ImInt;
+import imgui.type.ImString;
 import moe.gensoukyo.automata.actions.Action;
 import moe.gensoukyo.automata.actions.ActionFactory;
 import moe.gensoukyo.automata.actions.EventType;
+import moe.gensoukyo.automata.actions.image.ImageDefinition;
+import moe.gensoukyo.automata.actions.image.ImageType;
+import moe.gensoukyo.automata.actions.image.ImageShowAction;
+import moe.gensoukyo.automata.actions.image.ImageHideAction;
+import moe.gensoukyo.automata.actions.image.ImageMoveAction;
 import moe.gensoukyo.automata.actions.parameter.ParameterDefinition;
 import moe.gensoukyo.automata.actions.parameter.ParameterType;
 import moe.gensoukyo.automata.actions.parameter.ParameterValue;
@@ -36,6 +42,12 @@ public class Main extends Application {
     private final List<ParameterValue> parameterValues = new ArrayList<>();
     // 事件数据存储: 时间(秒*100) -> 事件列表
     private final Map<Integer, List<Action>> eventData = new TreeMap<>();
+    // 图片预定义存储
+    private final List<ImageDefinition> imageDefinitions = new ArrayList<>();
+    // 新增图片预定义时的临时值
+    private final ImInt newImageType = new ImInt(0);
+    private final ImString newImageName = new ImString(128);
+    private final ImString newImagePath = new ImString(512);
     private float timelineOffset = 0f;
     private float timelineZoom = 1f;
     private float currentTime = 0f;
@@ -98,9 +110,110 @@ public class Main extends Application {
                     eventData.values().stream().mapToInt(List::size).sum() + " 个事件)");
         }
 
+        drawImageDefinitions();
         drawTimeline();
         drawRightClickPopup();
         drawEventList();
+    }
+
+    private void drawImageDefinitions() {
+        ImGui.separator();
+
+        if (ImGui.collapsingHeader("图片预定义管理")) {
+            // 显示当前预定义数量
+            ImGui.textDisabled("已预定义 " + imageDefinitions.size() + " 个图片");
+            ImGui.sameLine();
+            ImGui.textDisabled("(这些预定义将在脚本开头输出)");
+
+            // 添加新预定义的区域
+            ImGui.separator();
+            ImGui.text("添加新预定义:");
+
+            // 类型选择
+            ImGui.text("类型:");
+            ImGui.sameLine();
+            String[] types = {"网络图片", "本地图片"};
+            ImGui.combo("##image_type", newImageType, types);
+
+            // 名称输入
+            ImGui.text("名称(唯一标识):");
+            ImGui.inputText("##image_name", newImageName);
+
+            // 路径输入
+            String pathLabel = newImageType.get() == 0 ? "URL:" : "ResourceLocation路径:";
+            ImGui.text(pathLabel);
+            ImGui.inputText("##image_path", newImagePath);
+
+            // 添加按钮
+            if (ImGui.button("添加预定义##add_image_def")) {
+                String name = newImageName.get().trim();
+                String path = newImagePath.get().trim();
+
+                if (name.isEmpty()) {
+                    ImGui.textColored(1.0f, 0.0f, 0.0f, 1.0f, "错误: 名称不能为空");
+                } else if (path.isEmpty()) {
+                    ImGui.textColored(1.0f, 0.0f, 0.0f, 1.0f, "错误: 路径不能为空");
+                } else if (imageDefinitions.stream().anyMatch(def -> def.name.equals(name))) {
+                    ImGui.textColored(1.0f, 0.0f, 0.0f, 1.0f, "错误: 名称 '" + name + "' 已存在");
+                } else {
+                    ImageType type = newImageType.get() == 0 ? ImageType.NETWORK : ImageType.LOCAL;
+                    imageDefinitions.add(new ImageDefinition(type, name, path));
+
+                    // 清空输入框
+                    newImageName.set("");
+                    newImagePath.set("");
+
+                    System.out.println("添加图片预定义: " + type.getDisplayName() + " - " + name);
+                }
+            }
+
+            ImGui.separator();
+
+            // 显示已有的预定义列表
+            if (!imageDefinitions.isEmpty()) {
+                ImGui.text("已有预定义:");
+
+                for (int i = 0; i < imageDefinitions.size(); i++) {
+                    ImageDefinition def = imageDefinitions.get(i);
+                    ImGui.pushID(i);
+
+                    // 类型标识
+                    String typeTag = def.type == ImageType.NETWORK ? "[网络]" : "[本地]";
+                    ImGui.text(typeTag + " " + def.name);
+
+                    // 显示路径（如果路径太长，截断显示）
+                    String displayPath = def.path;
+                    if (displayPath.length() > 50) {
+                        displayPath = displayPath.substring(0, 47) + "...";
+                    }
+                    ImGui.sameLine();
+                    ImGui.textDisabled("-> " + displayPath);
+
+                    // 悬停显示完整路径
+                    if (ImGui.isItemHovered()) {
+                        ImGui.beginTooltip();
+                        ImGui.text(def.path);
+                        ImGui.endTooltip();
+                    }
+
+                    // 删除按钮
+                    ImGui.sameLine();
+                    String deleteLabel = "删除##del_img_" + i;
+                    if (ImGui.button(deleteLabel)) {
+                        imageDefinitions.remove(i);
+                        i--;
+                        ImGui.popID();
+                        continue;
+                    }
+
+                    ImGui.popID();
+                }
+            } else {
+                ImGui.textDisabled("暂无预定义");
+            }
+
+            ImGui.separator();
+        }
     }
 
     private void drawTimeline() {
@@ -463,9 +576,54 @@ public class Main extends Application {
         }
 
         try {
+            // 首先检查所有使用的图片是否已预定义
+            java.util.Set<String> usedImageNames = new java.util.HashSet<>();
+            java.util.Set<String> definedImageNames = imageDefinitions.stream()
+                    .map(def -> def.name)
+                    .collect(java.util.stream.Collectors.toSet());
+
+            // 收集所有使用到的图片名称
+            for (List<Action> actions : eventData.values()) {
+                for (Action action : actions) {
+                    if (action instanceof ImageShowAction imgShow) {
+                        usedImageNames.add(imgShow.imageName);
+                    } else if (action instanceof ImageHideAction imgHide) {
+                        usedImageNames.add(imgHide.imageName);
+                    } else if (action instanceof ImageMoveAction imgMove) {
+                        usedImageNames.add(imgMove.imageName);
+                    }
+                }
+            }
+
+            // 检查是否有未定义的图片
+            java.util.Set<String> undefinedImages = new java.util.HashSet<>(usedImageNames);
+            undefinedImages.removeAll(definedImageNames);
+
+            if (!undefinedImages.isEmpty()) {
+                System.err.println("错误: 以下图片未被预定义:");
+                for (String name : undefinedImages) {
+                    System.err.println("  - " + name);
+                }
+                JOptionPane.showMessageDialog(null,
+                        "以下图片未被预定义，请先在\"图片预定义管理\"中添加:\n" +
+                        String.join("\n", undefinedImages),
+                        "导出错误",
+                        JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
             // 生成脚本内容
             StringBuilder script = new StringBuilder();
             script.append("@Cinematic\n");
+
+            // 首先输出图片预定义
+            if (!imageDefinitions.isEmpty()) {
+                script.append("# 图片预定义\n");
+                for (ImageDefinition def : imageDefinitions) {
+                    script.append(def.toScriptString()).append("\n");
+                }
+                script.append("\n");
+            }
 
             // 遍历所有时间点
             for (Map.Entry<Integer, List<Action>> entry : eventData.entrySet()) {
@@ -516,7 +674,8 @@ public class Main extends Application {
                 }
 
                 System.out.println("脚本已导出到: " + fileToSave.getAbsolutePath());
-                System.out.println("共 " + eventData.size() + " 个时间点");
+                System.out.println("共 " + imageDefinitions.size() + " 个图片预定义, " +
+                        eventData.size() + " 个时间点");
 
                 // 同时输出到控制台以便预览
                 System.out.println("\n========== 导出的脚本 ==========");

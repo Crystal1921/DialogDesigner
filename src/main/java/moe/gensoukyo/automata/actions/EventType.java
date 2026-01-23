@@ -63,10 +63,6 @@ public enum EventType {
     ),
 
     // === 图片操作 ===
-    LOCAL_IMAGE("预定义本地图片", "local_image",
-        new ParameterDefinition("图片名称", ParameterType.STRING, "", "图片的唯一标识符"),
-        new ParameterDefinition("图片路径", ParameterType.STRING, "", "ResourceLocation路径")
-    ),
     IMAGE_SHOW("显示图片", "image_show",
         new ParameterDefinition("图片名称", ParameterType.STRING, "", "图片标识符"),
         new ParameterDefinition("X坐标", ParameterType.FLOAT, "0", ""),

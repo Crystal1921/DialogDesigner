@@ -60,9 +60,6 @@ public class ActionFactory {
                     values.get(0).stringValue.get(),
                     values.get(1).colorValue.clone());
             case MODEL_PAT -> new ModelPatAction(timeKey, values.get(0).stringValue.get());
-            case LOCAL_IMAGE -> new LocalImageAction(timeKey,
-                    values.get(0).stringValue.get(),
-                    values.get(1).stringValue.get());
             case IMAGE_SHOW -> new ImageShowAction(timeKey,
                     values.get(0).stringValue.get(),
                     values.get(1).floatValue.get(),
