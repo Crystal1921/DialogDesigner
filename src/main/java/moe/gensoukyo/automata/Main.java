@@ -20,7 +20,6 @@ import moe.gensoukyo.automata.actions.parameter.ParameterType;
 import moe.gensoukyo.automata.actions.parameter.ParameterValue;
 
 import javax.swing.*;
-import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.*;
 import java.awt.datatransfer.StringSelection;
 import java.io.FileWriter;
@@ -604,11 +603,10 @@ public class Main extends Application {
                 for (String name : undefinedImages) {
                     System.err.println("  - " + name);
                 }
-                JOptionPane.showMessageDialog(null,
-                        "以下图片未被预定义，请先在\"图片预定义管理\"中添加:\n" +
-                        String.join("\n", undefinedImages),
-                        "导出错误",
-                        JOptionPane.ERROR_MESSAGE);
+                // 使用系统原生消息框
+                showErrorMessage("导出错误",
+                        "以下图片未被预定义，请先在\"图片预定义管理\"中添加:\n\n" +
+                        String.join("\n", undefinedImages));
                 return;
             }
 
@@ -644,24 +642,18 @@ public class Main extends Application {
                 script.append("\n");
             }
 
-            // 创建文件选择器
-            JFileChooser fileChooser = new JFileChooser();
-            fileChooser.setDialogTitle("保存脚本文件");
-            fileChooser.setDialogType(JFileChooser.SAVE_DIALOG);
+            // 创建原生文件保存对话框
+            Frame frame = new Frame(); // 创建一个隐藏的父窗口
+            FileDialog fileDialog = new FileDialog(frame, "保存脚本文件", FileDialog.SAVE);
+            fileDialog.setFile("cinematic.txt"); // 设置默认文件名
+            fileDialog.setVisible(true);
 
-            // 设置文件过滤器
-            FileNameExtensionFilter filter = new FileNameExtensionFilter(
-                    "文本文件 (*.txt)", "txt");
-            fileChooser.setFileFilter(filter);
+            // 获取用户选择的文件
+            String selectedFile = fileDialog.getFile();
+            String selectedDir = fileDialog.getDirectory();
 
-            // 设置默认文件名
-            fileChooser.setSelectedFile(new java.io.File("cinematic.txt"));
-
-            // 显示保存对话框
-            int userSelection = fileChooser.showSaveDialog(null);
-
-            if (userSelection == JFileChooser.APPROVE_OPTION) {
-                java.io.File fileToSave = fileChooser.getSelectedFile();
+            if (selectedFile != null && selectedDir != null) {
+                java.io.File fileToSave = new java.io.File(selectedDir, selectedFile);
 
                 // 确保文件以.txt结尾
                 if (!fileToSave.getName().toLowerCase().endsWith(".txt")) {
@@ -677,6 +669,12 @@ public class Main extends Application {
                 System.out.println("共 " + imageDefinitions.size() + " 个图片预定义, " +
                         eventData.size() + " 个时间点");
 
+                // 显示成功提示
+                showInfoMessage("导出成功",
+                        "脚本已导出到:\n" + fileToSave.getAbsolutePath() +
+                        "\n\n共 " + imageDefinitions.size() + " 个图片预定义, " +
+                        eventData.size() + " 个时间点");
+
                 // 同时输出到控制台以便预览
                 System.out.println("\n========== 导出的脚本 ==========");
                 System.out.print(script);
@@ -686,6 +684,39 @@ public class Main extends Application {
         } catch (Exception e) {
             System.err.println("导出脚本失败: " + e.getMessage());
             e.printStackTrace();
+            showErrorMessage("导出失败", "导出脚本时发生错误:\n" + e.getMessage());
+        }
+    }
+
+    /**
+     * 显示错误消息（使用系统原生对话框）
+     */
+    private void showErrorMessage(String title, String message) {
+        // 在Windows上使用原生对话框
+        if (System.getProperty("os.name").toLowerCase().contains("win")) {
+            Frame frame = new Frame();
+            frame.setVisible(false);
+            JOptionPane.showMessageDialog(frame, message, title, JOptionPane.ERROR_MESSAGE);
+            frame.dispose();
+        } else {
+            // 其他平台使用标准对话框
+            JOptionPane.showMessageDialog(null, message, title, JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    /**
+     * 显示信息消息（使用系统原生对话框）
+     */
+    private void showInfoMessage(String title, String message) {
+        // 在Windows上使用原生对话框
+        if (System.getProperty("os.name").toLowerCase().contains("win")) {
+            Frame frame = new Frame();
+            frame.setVisible(false);
+            JOptionPane.showMessageDialog(frame, message, title, JOptionPane.INFORMATION_MESSAGE);
+            frame.dispose();
+        } else {
+            // 其他平台使用标准对话框
+            JOptionPane.showMessageDialog(null, message, title, JOptionPane.INFORMATION_MESSAGE);
         }
     }
 }
