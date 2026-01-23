@@ -15,6 +15,8 @@ import moe.gensoukyo.automata.actions.parameter.ParameterValue;
 
 import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import java.awt.*;
+import java.awt.datatransfer.StringSelection;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -160,7 +162,7 @@ public class Main extends Application {
             }
             float tickHeight = (s % 5 == 0) ? 30f : 18f;
             drawList.addLine(x, timelineStartY, x, timelineStartY + tickHeight, 0xFFAAAAAA);
-            if (s % 5 == 0) {
+            if (s % 5 == 0 || timelineZoom > 1 ) {
                 drawList.addText(x + 4f, timelineStartY + tickHeight + 2f, 0xFFFFFFFF, s + "s");
             }
         }
@@ -330,6 +332,13 @@ public class Main extends Application {
                     // 事件描述
                     ImGui.text("  " + action.getDisplayName());
 
+                    // 复制按钮
+                    ImGui.sameLine();
+                    String copyLabel = "复制##" + timeKey + "_" + i;
+                    if (ImGui.button(copyLabel)) {
+                        copyActionToClipboard(action);
+                    }
+
                     // 删除按钮
                     ImGui.sameLine();
                     String deleteLabel = "删除##" + timeKey + "_" + i;
@@ -419,6 +428,29 @@ public class Main extends Application {
                     (int) (value.colorValue[3] * 255));
             case COORDINATES -> String.format("(%.2f, %.2f, %.2f)", value.coordX, value.coordY, value.coordZ);
         };
+    }
+
+    /**
+     * 复制单个事件的action文本到剪贴板
+     */
+    private void copyActionToClipboard(Action action) {
+        try {
+            // 生成该事件的脚本字符串
+            String scriptText = action.toScriptString();
+
+            // 获取系统剪贴板
+            Toolkit defaultToolkit = Toolkit.getDefaultToolkit();
+            java.awt.datatransfer.Clipboard clipboard = defaultToolkit.getSystemClipboard();
+
+            // 创建StringSelection并设置到剪贴板
+            StringSelection stringSelection = new StringSelection(scriptText);
+            clipboard.setContents(stringSelection, null);
+
+            System.out.println("已复制到剪贴板: " + scriptText);
+        } catch (Exception e) {
+            System.err.println("复制到剪贴板失败: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     /**

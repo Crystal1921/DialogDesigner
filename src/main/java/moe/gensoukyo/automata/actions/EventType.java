@@ -8,6 +8,22 @@ import moe.gensoukyo.automata.actions.parameter.ParameterType;
  * 定义所有支持的事件类型及其参数
  */
 public enum EventType {
+    // === 场景 ===
+    SCENE_COLOR("场景颜色", "scene_color",
+            new ParameterDefinition("颜色值", ParameterType.COLOR, "00000000", "16进制ARGB颜色"),
+            new ParameterDefinition("淡入时间(tick)", ParameterType.INT, "0", "淡入时间")
+    ),
+    SCENE_COLOR_CLEAR("场景颜色清除", "scene_color_clear"),
+    SCENE_TEXT("场景文字", "scene_text",
+            new ParameterDefinition("文本内容", ParameterType.STRING, "", "要显示的文字"),
+            new ParameterDefinition("持续时间(tick)", ParameterType.INT, "60", ""),
+            new ParameterDefinition("X坐标", ParameterType.FLOAT, "0", ""),
+            new ParameterDefinition("Y坐标", ParameterType.FLOAT, "0", ""),
+            new ParameterDefinition("颜色", ParameterType.COLOR, "FFFFFF", "可选: 16进制RGB颜色"),
+            new ParameterDefinition("淡入时间", ParameterType.INT, "0", "可选: 淡入时间(tick)"),
+            new ParameterDefinition("淡出时间", ParameterType.INT, "0", "可选: 淡出时间(tick)")
+    ),
+    SCENE_TEXT_CLEAR("场景文字清除", "scene_text_clear"),
     // === 模型操作 ===
     MODEL_SHOW("显示模型", "model_show",
         new ParameterDefinition("模型标识符", ParameterType.STRING, "", "模型的唯一标识符"),
@@ -76,23 +92,6 @@ public enum EventType {
         new ParameterDefinition("音乐URL", ParameterType.STRING, "", "音乐的URL地址")
     ),
     STOP_MUSIC("停止音乐", "stop_music"),
-
-    // === 场景 ===
-    SCENE_COLOR("场景颜色", "scene_color",
-        new ParameterDefinition("颜色值", ParameterType.COLOR, "00000000", "16进制ARGB颜色"),
-        new ParameterDefinition("淡入时间(tick)", ParameterType.INT, "0", "淡入时间")
-    ),
-    SCENE_COLOR_CLEAR("场景颜色清除", "scene_color_clear"),
-    SCENE_TEXT("场景文字", "scene_text",
-        new ParameterDefinition("文本内容", ParameterType.STRING, "", "要显示的文字"),
-        new ParameterDefinition("持续时间(tick)", ParameterType.INT, "60", ""),
-        new ParameterDefinition("X坐标", ParameterType.FLOAT, "0", ""),
-        new ParameterDefinition("Y坐标", ParameterType.FLOAT, "0", ""),
-        new ParameterDefinition("颜色", ParameterType.COLOR, "FFFFFF", "可选: 16进制RGB颜色"),
-        new ParameterDefinition("淡入时间", ParameterType.INT, "0", "可选: 淡入时间(tick)"),
-        new ParameterDefinition("淡出时间", ParameterType.INT, "0", "可选: 淡出时间(tick)")
-    ),
-    SCENE_TEXT_CLEAR("场景文字清除", "scene_text_clear"),
 
     // === 文字 ===
     TEXT_SPEED("文字速度", "text_speed",
